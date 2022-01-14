@@ -25,6 +25,6 @@ fi
 # echo "Directory ${filesdir} text ${searchstr}"
 filecount=$(find ${filesdir} | wc -l)
 strcount=$(grep -r ${searchstr} ${filesdir} | wc -l)
-let filecount--
+filecount=$((filecount-1))
 
 echo "The number of files are ${filecount} and the number of matching lines are ${strcount}"
