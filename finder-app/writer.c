@@ -29,26 +29,10 @@ int main(int argc, char*argv[])
         return 1;
     }
 
-    // If any of the arguments are null, log error.
-    if((argv[1] == NULL) || (argv[2] == NULL)) 
-    {
-        // log error
-        syslog(LOG_ERR, "Invalid Arguments. Press -h option for help\n");
-        return 1;
-    }
-
     // Get the file path
     char* file_path = argv[1];
     // Get the string to be written into the file
     char* str = argv[2];
-
-    // Check if the args are empty
-    if((str[0] == ' ') || (file_path[0] == ' '))
-    {
-        // log error
-        syslog(LOG_ERR, "Empty String Passed.\n");
-        return 1;
-    }
 
     // Open the file.
     FILE* file = fopen(file_path, "w+");
