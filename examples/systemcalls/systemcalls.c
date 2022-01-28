@@ -1,4 +1,12 @@
 #include "systemcalls.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <sys/file.h>
+#include <syslog.h>
+#include <string.h>
+#include <errno.h>
 
 /**
  * @param cmd the command to execute with system()
@@ -16,7 +24,11 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success 
  *   or false() if it returned a failure
 */
-
+    int ret_val = system(cmd);
+    if(ret_val == -1)
+    {
+        return false;
+    }
     return true;
 }
 
@@ -47,7 +59,7 @@ bool do_exec(int count, ...)
     command[count] = NULL;
     // this line is to avoid a compile warning before your implementation is complete
     // and may be removed
-    command[count] = command[count];
+    // command[count] = command[count];
 
 /*
  * TODO:
@@ -58,8 +70,50 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *   
 */
+    openlog("syscall", LOG_PID|LOG_NDELAY, LOG_USER);
+    int status = 0;
+    pid_t fork_ret_val = fork();
+    if(fork_ret_val == -1)
+    {
+        syslog(LOG_ERR, "Fork_failed: %s", strerror(errno));
+        return false;
+    }
+    else if(!fork_ret_val) // Child process
+    {
+        int exec_ret_val = execv(command[0], command);
+        if(exec_ret_val == -1)
+        {
+            syslog(LOG_ERR, "Exec_failed: %s command[0]=%s", strerror(errno), command[0]);
+            exit(EXIT_FAILURE);
+        }
+    }
+    else // Parent process
+    {
+        pid_t pid = waitpid(fork_ret_val, &status, 0);
+        if(pid == -1)
+        {
+            syslog(LOG_ERR, "wait_error: %s", strerror(errno));
+            return false;
+        }
+        else if(pid == fork_ret_val)
+        {      
+            if (WIFEXITED (status))
+            {
+                // printf ("Normal termination with exit status=%d status=%d\n", WEXITSTATUS (status), status);
+                if( WEXITSTATUS (status) == EXIT_SUCCESS)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        }
+    }
 
     va_end(args);
+    closelog();
 
     return true;
 }
@@ -92,8 +146,68 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *   
 */
+    bool ret_status = true;
+    openlog("syscall", LOG_PID|LOG_NDELAY, LOG_USER);
+
+    // printf("ret_val = %d\n", do_exec(count, args));
+
+    
+    int status = 0;
+    pid_t fork_ret_val = fork();
+    if(fork_ret_val == -1)
+    {
+        syslog(LOG_ERR, "Fork_failed: %s", strerror(errno));
+        ret_status = false;
+    }
+    else if(!fork_ret_val) // Child process
+    {
+        int outputFileDesc = open(outputfile, O_WRONLY|O_TRUNC|O_CREAT);
+        if(outputFileDesc == -1)
+        {
+            syslog(LOG_ERR, "fd_error: %s", strerror(errno));
+        }
+        if(dup2(outputFileDesc, STDOUT_FILENO) < 0) 
+        {
+            syslog(LOG_ERR, "dup2_error: %s", strerror(errno));
+        }
+
+        close(outputFileDesc);
+        syslog(LOG_ERR, "command[0]=%s", command[0]);
+        int exec_ret_val = execv(command[0], command);
+        if(exec_ret_val == -1){}
+        {
+            syslog(LOG_ERR, "Exec_failed: %s command[0]=%s", strerror(errno), command[0]);
+            exit(EXIT_FAILURE);
+        }
+    }
+    else // Parent process
+    {
+        pid_t pid = waitpid(fork_ret_val, &status, 0);
+        if(pid == -1)
+        {
+            syslog(LOG_ERR, "wait_error: %s", strerror(errno));
+            ret_status = false;
+        }
+        else if(pid == fork_ret_val)
+        {      
+            if (WIFEXITED (status))
+            {
+                printf ("Normal termination with exit status=%d status=%d\n", WEXITSTATUS (status), status);
+                if( WEXITSTATUS (status) == EXIT_SUCCESS)
+                {
+                    ret_status = true;
+                }
+                else
+                {
+                    ret_status = false;
+                }
+            }
+        }
+    }
+    // close(outputFileDesc);
+    closelog();
 
     va_end(args);
     
-    return true;
+    return ret_status;
 }
