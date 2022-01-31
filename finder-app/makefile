@@ -27,5 +27,4 @@ $(APP_NAME) : $(C_OBJ)
 
 #clean the artifacts
 clean:
-	@rm -rf build
-	@rm $(APP_NAME)
+	$(RM) build $(APP_NAME)
