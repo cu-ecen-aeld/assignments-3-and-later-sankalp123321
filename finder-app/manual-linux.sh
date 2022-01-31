@@ -47,7 +47,7 @@ if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
     make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} dtbs
 fi 
 
-cp ${OUTDIR}/linux-stable/arch/arm64/Image .
+cp ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ${OUTDIR}/
 
 echo "Adding the Image in outdir"
 
