@@ -20,6 +20,7 @@ CC:=$(CROSS_COMPILE)$(GCC)
 build/%.o : %.c $(C_INCLUDE)
 	@mkdir build
 	$(CC) -c -o $@ $< $(C_FLAGS)
+all: $(APP_NAME)
 
 # Generate the app using the object file
 $(APP_NAME) : $(C_OBJ)
