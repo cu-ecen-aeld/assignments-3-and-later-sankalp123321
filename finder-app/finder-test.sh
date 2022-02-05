@@ -56,7 +56,7 @@ do
 	writer "$WRITEDIR/${username}$i.txt" "$WRITESTR"
 done
 
-OUTPUTSTRING=$(./finder.sh "$WRITEDIR" "$WRITESTR")
+OUTPUTSTRING=$(finder.sh "$WRITEDIR" "$WRITESTR")
 touch /tmp/assignment-4-result.txt
 set +e
 echo ${OUTPUTSTRING} | grep "${MATCHSTR}"
