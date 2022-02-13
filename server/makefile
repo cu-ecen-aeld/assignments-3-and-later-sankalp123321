@@ -18,7 +18,7 @@ CC:=$(CROSS_COMPILE)$(GCC)
 
 # Generate the object file using the source file
 build/%.o : %.c $(C_INCLUDE)
-	@mkdir build 
+	@mkdir -p build 
 	$(CC) -c -o $@ $< $(C_FLAGS)
 all: $(APP_NAME)
 default: $(APP_NAME)
