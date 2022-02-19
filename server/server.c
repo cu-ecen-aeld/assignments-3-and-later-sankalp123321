@@ -25,6 +25,9 @@
 
 #define _DEBUG_
 
+#define IP_MAX_LEN 100
+#define MAX_BUFFER_SIZE 1024
+#define TEMP_FILE "/var/tmp/aesdsocketdata"
 #define ALLOWED_BACKLOG_CONNS 10
 #define PORT "9000"
 
@@ -40,8 +43,15 @@ void *get_in_addr(struct sockaddr *sa)
 void gracefulShutdonw()
 {
     syslog(LOG_INFO, "Caught Signal, exiting\n");
-    remove("/var/tmp/aesdsocketdata");
+    remove(TEMP_FILE);
     _exit(0);
+}
+
+void cleanBeforeExit(int fd1, int fd2)
+{
+    remove(TEMP_FILE);
+    close(fd1);
+    close(fd2);
 }
 
 int main(int argc, char* argv[])
@@ -54,7 +64,7 @@ int main(int argc, char* argv[])
     
     openlog("aesdsocket", LOG_CONS|LOG_PERROR|LOG_PID, LOG_USER);
 
-    int write_to_fd = open("/var/tmp/aesdsocketdata", O_RDWR|O_CREAT|O_APPEND, S_IRWXU|S_IRWXO);
+    int write_to_fd = open(TEMP_FILE, O_RDWR|O_CREAT|O_APPEND, S_IRWXU|S_IRWXO);
     if(write_to_fd < 0)
     {
         syslog(LOG_ERR, "open file: %s", strerror(errno));
@@ -70,7 +80,7 @@ int main(int argc, char* argv[])
     int ret = getaddrinfo(NULL, PORT, &s_addr, &new_addr);
     if(ret != 0)
     {
-        remove("/var/tmp/aesdsocketdata");
+        remove(TEMP_FILE);
         syslog(LOG_ERR, "getaddrinfo error %s\n", gai_strerror(ret));
         close(write_to_fd);
         return EXIT_FAILURE;
@@ -81,8 +91,7 @@ int main(int argc, char* argv[])
     int server_fd = socket(s_addr.ai_family, SOCK_STREAM, 0);
     if(server_fd < 0)
     {
-        remove("/var/tmp/aesdsocketdata");
-        // perror("socket");
+        remove(TEMP_FILE);
         syslog(LOG_ERR, "socket: %s", strerror(errno));
         close(write_to_fd);
         freeaddrinfo(new_addr);
@@ -94,14 +103,12 @@ int main(int argc, char* argv[])
     int bind_ret = bind(server_fd, new_addr->ai_addr, new_addr->ai_addrlen);
     if(bind_ret < 0)
     {
-        remove("/var/tmp/aesdsocketdata");
-        // perror("bind");
         syslog(LOG_ERR, "bind: %s", strerror(errno));
-        close(write_to_fd);
-        close(server_fd);
         freeaddrinfo(new_addr);
         return EXIT_FAILURE;
     }
+
+    freeaddrinfo(new_addr);
 
     if(argc == 2)
     {
@@ -115,11 +122,8 @@ int main(int argc, char* argv[])
             int ret_val = daemon(0, 0);
             if(ret_val < 0)
             {
-                remove("/var/tmp/aesdsocketdata");
                 syslog(LOG_ERR, "daemon: %s", strerror(errno));
-                close(write_to_fd);
-                close(server_fd);
-                freeaddrinfo(new_addr);
+                cleanBeforeExit(write_to_fd, server_fd);
                 return EXIT_FAILURE;
             }
         }
@@ -133,12 +137,8 @@ int main(int argc, char* argv[])
         int listen_ret = listen(server_fd, ALLOWED_BACKLOG_CONNS);
         if(listen_ret < 0)
         {
-            // perror("listen");
-            remove("/var/tmp/aesdsocketdata");
             syslog(LOG_ERR, "listen: %s", strerror(errno));
-            close(write_to_fd);
-            close(server_fd);
-            freeaddrinfo(new_addr);
+            cleanBeforeExit(write_to_fd, server_fd);
             return EXIT_FAILURE;
         } 
         socklen_t add_size = sizeof(client_addr);
@@ -149,34 +149,33 @@ int main(int argc, char* argv[])
         int new_fd = accept(server_fd, sck_addr, &add_size);
         if(new_fd < 0)
         {
-            // perror("accept");
-            remove("/var/tmp/aesdsocketdata");
             syslog(LOG_ERR, "accept: %s", strerror(errno));
-            close(write_to_fd);
-            close(server_fd);
-            freeaddrinfo(new_addr);
+            cleanBeforeExit(write_to_fd, server_fd);;
             return EXIT_FAILURE;
         }
         
-        char str_ip[100];
-        inet_ntop(s_addr.ai_family , get_in_addr((struct sockaddr *)&client_addr), str_ip, sizeof str_ip);
+        char str_ip[IP_MAX_LEN];
+        const char* ret = inet_ntop(s_addr.ai_family , get_in_addr((struct sockaddr *)&client_addr), str_ip, IP_MAX_LEN);
+        if (ret == NULL)
+        {
+            syslog(LOG_ERR, "inet_ntop: %s", strerror(errno));
+            cleanBeforeExit(write_to_fd, server_fd);;
+            return EXIT_FAILURE;
+        }
         
         syslog(LOG_INFO, "Accepted connection from %s\n", str_ip);
 #ifdef _DEBUG_
         printf("New connection fd[%d] %s\n", new_fd, str_ip);
 #endif
-        uint8_t *buf = (uint8_t*)malloc(1024);
+        uint8_t *buf = (uint8_t*)malloc(MAX_BUFFER_SIZE);
         if(buf == NULL)
         {
-            remove("/var/tmp/aesdsocketdata");
             syslog(LOG_ERR, "ENOMEM");
-            close(write_to_fd);
-            close(server_fd);
-            freeaddrinfo(new_addr);
+            cleanBeforeExit(write_to_fd, server_fd);
             return EXIT_FAILURE;
         }
 
-        uint16_t buffer_size = 1024;
+        uint16_t buffer_size = MAX_BUFFER_SIZE;
         uint16_t total_buf_size = 0, realloc_count = 1;
         memset(buf, 0, buffer_size);
 
@@ -212,6 +211,7 @@ int main(int argc, char* argv[])
 #ifdef _DEBUG_
                             printf("success in writing %ld bytes.\n", strlen((char*)buf));
 #endif
+                            free(buf);
                         }
                         break;
                     }
@@ -225,12 +225,9 @@ int main(int argc, char* argv[])
                     total_buf_size += buffer_size;
                     if(buf == NULL)
                     {
-                        remove("/var/tmp/aesdsocketdata");
                         syslog(LOG_ERR, "ENOMEM");
                         free(buf);
-                        close(write_to_fd);
-                        close(server_fd);
-                        freeaddrinfo(new_addr);
+                        cleanBeforeExit(write_to_fd, server_fd);
                         return EXIT_FAILURE;
                     }
 #ifdef _DEBUG_
@@ -252,12 +249,9 @@ int main(int argc, char* argv[])
                 case EBADF:
                 case ECONNREFUSED:
                     {
-                        remove("/var/tmp/aesdsocketdata");
                         syslog(LOG_ERR, "recv: %s", strerror(errno));
                         free(buf);
-                        close(write_to_fd);
-                        close(server_fd);
-                        freeaddrinfo(new_addr);
+                        cleanBeforeExit(write_to_fd, server_fd);
                         return EXIT_FAILURE;
                     }
                     break;
@@ -266,8 +260,8 @@ int main(int argc, char* argv[])
                 }
             }
         }
-        uint8_t buffer[512];
-        buffer_size = sizeof buffer/ sizeof buffer[0];
+        uint8_t buffer[MAX_BUFFER_SIZE];
+        buffer_size = MAX_BUFFER_SIZE;
         lseek(write_to_fd, 0, SEEK_SET);
         while (1)
         {
@@ -279,12 +273,8 @@ int main(int argc, char* argv[])
             }
             if(read_Val < 0)
             {
-                remove("/var/tmp/aesdsocketdata");
                 syslog(LOG_ERR, "read: %s", strerror(errno));
-                free(buf);
-                close(write_to_fd);
-                close(server_fd);
-                freeaddrinfo(new_addr);
+                cleanBeforeExit(write_to_fd, server_fd);
                 return EXIT_FAILURE;
             }
 #ifdef _DEBUG_
@@ -293,13 +283,8 @@ int main(int argc, char* argv[])
             int ret_val = send(new_fd, buffer, read_Val, 0);
             if(read_Val != ret_val)
             {
-                remove("/var/tmp/aesdsocketdata");
-                // perror("send");
                 syslog(LOG_ERR, "read_Val[%d] actual[%d] send: %s", read_Val, ret_val, strerror(errno));
-                free(buf);
-                close(write_to_fd);
-                close(server_fd);
-                freeaddrinfo(new_addr);
+                cleanBeforeExit(write_to_fd, server_fd);
                 return EXIT_FAILURE;
             }
 #ifdef _DEBUG_
@@ -311,11 +296,7 @@ int main(int argc, char* argv[])
 #ifdef _DEBUG_
         printf("Closed connection fd[%d] %s\n", new_fd, str_ip);
 #endif
-        free(buf);
     }
-    remove("/var/tmp/aesdsocketdata"); 
-    close(write_to_fd);
-    close(server_fd);
-    freeaddrinfo(new_addr);
+    cleanBeforeExit(write_to_fd, server_fd);
     return EXIT_SUCCESS;
 }
