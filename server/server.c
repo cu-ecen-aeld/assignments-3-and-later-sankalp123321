@@ -23,7 +23,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#define _DEBUG_
+#undef _DEBUG_
 
 #define IP_MAX_LEN 100
 #define MAX_BUFFER_SIZE 1024
