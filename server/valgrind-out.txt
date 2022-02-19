@@ -1,0 +1,121 @@
+==4043== Memcheck, a memory error detector
+==4043== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+==4043== Using Valgrind-3.14.0-353a3587bb-20181007X and LibVEX; rerun with -h for copyright info
+==4043== Command: ./aesdsocket
+==4043== Parent PID: 4041
+==4043== 
+--4043-- 
+--4043-- Valgrind options:
+--4043--    --error-exitcode=1
+--4043--    --leak-check=full
+--4043--    --show-leak-kinds=all
+--4043--    --track-origins=yes
+--4043--    --errors-for-leak-kinds=definite
+--4043--    --verbose
+--4043--    --log-file=valgrind-out.txt
+--4043-- Contents of /proc/version:
+--4043--   Linux version 4.19.0-18-amd64 (debian-kernel@lists.debian.org) (gcc version 8.3.0 (Debian 8.3.0-6)) #1 SMP Debian 4.19.208-1 (2021-09-29)
+--4043-- 
+--4043-- Arch and hwcaps: AMD64, LittleEndian, amd64-rdtscp-sse3
+--4043-- Page sizes: currently 4096, max supported 4096
+--4043-- Valgrind library directory: /usr/lib/x86_64-linux-gnu/valgrind
+--4043-- Reading syms from /home/sankalp/Desktop/AESD/assignments-3-and-later-sankalp123321/server/aesdsocket
+--4043-- Reading syms from /usr/lib/x86_64-linux-gnu/ld-2.28.so
+--4043--   Considering /usr/lib/debug/.build-id/f2/5dfd7b95be4ba386fd71080accae8c0732b711.debug ..
+--4043--   .. build-id is valid
+--4043-- Reading syms from /usr/lib/x86_64-linux-gnu/valgrind/memcheck-amd64-linux
+--4043--   Considering /usr/lib/debug/.build-id/32/2e77af97f403c3d34ff09edf60b089e72ec889.debug ..
+--4043--   .. build-id is valid
+--4043--    object doesn't have a dynamic symbol table
+--4043-- Scheduler: using generic scheduler lock implementation.
+--4043-- Reading suppressions file: /usr/lib/x86_64-linux-gnu/valgrind/default.supp
+==4043== embedded gdbserver: reading from /tmp/vgdb-pipe-from-vgdb-to-4043-by-sankalp-on-???
+==4043== embedded gdbserver: writing to   /tmp/vgdb-pipe-to-vgdb-from-4043-by-sankalp-on-???
+==4043== embedded gdbserver: shared mem   /tmp/vgdb-pipe-shared-mem-vgdb-4043-by-sankalp-on-???
+==4043== 
+==4043== TO CONTROL THIS PROCESS USING vgdb (which you probably
+==4043== don't want to do, unless you know exactly what you're doing,
+==4043== or are doing some strange experiment):
+==4043==   /usr/lib/x86_64-linux-gnu/valgrind/../../bin/vgdb --pid=4043 ...command...
+==4043== 
+==4043== TO DEBUG THIS PROCESS USING GDB: start GDB like this
+==4043==   /path/to/gdb ./aesdsocket
+==4043== and then give GDB the following command
+==4043==   target remote | /usr/lib/x86_64-linux-gnu/valgrind/../../bin/vgdb --pid=4043
+==4043== --pid is optional if only one valgrind process is running
+==4043== 
+--4043-- REDIR: 0x401e2f0 (ld-linux-x86-64.so.2:strlen) redirected to 0x580c9ce2 (vgPlain_amd64_linux_REDIR_FOR_strlen)
+--4043-- REDIR: 0x401e0d0 (ld-linux-x86-64.so.2:index) redirected to 0x580c9cfc (vgPlain_amd64_linux_REDIR_FOR_index)
+--4043-- Reading syms from /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_core-amd64-linux.so
+--4043--   Considering /usr/lib/debug/.build-id/34/fbc4cdfbfce1bfc3d2e522a01a050bf724c930.debug ..
+--4043--   .. build-id is valid
+--4043-- Reading syms from /usr/lib/x86_64-linux-gnu/valgrind/vgpreload_memcheck-amd64-linux.so
+--4043--   Considering /usr/lib/debug/.build-id/ca/bb7898ea982d936cbfadd70ae831c6eb63623f.debug ..
+--4043--   .. build-id is valid
+==4043== WARNING: new redirection conflicts with existing -- ignoring it
+--4043--     old: 0x0401e2f0 (strlen              ) R-> (0000.0) 0x580c9ce2 vgPlain_amd64_linux_REDIR_FOR_strlen
+--4043--     new: 0x0401e2f0 (strlen              ) R-> (2007.0) 0x04838d80 strlen
+--4043-- REDIR: 0x401ab10 (ld-linux-x86-64.so.2:strcmp) redirected to 0x4839e40 (strcmp)
+--4043-- REDIR: 0x401e830 (ld-linux-x86-64.so.2:mempcpy) redirected to 0x483d860 (mempcpy)
+--4043-- Reading syms from /usr/lib/x86_64-linux-gnu/libc-2.28.so
+--4043--   Considering /usr/lib/debug/.build-id/18/b9a9a8c523e5cfe5b5d946d605d09242f09798.debug ..
+--4043--   .. build-id is valid
+--4043-- REDIR: 0x48e7f70 (libc.so.6:memmove) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48e7160 (libc.so.6:strncpy) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48e8250 (libc.so.6:strcasecmp) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48e6b70 (libc.so.6:strcat) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48e7190 (libc.so.6:rindex) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48e9890 (libc.so.6:rawmemchr) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x4902230 (libc.so.6:wmemchr) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x4901cd0 (libc.so.6:wcscmp) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48e80e0 (libc.so.6:mempcpy) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48e7f10 (libc.so.6:bcmp) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48e7100 (libc.so.6:strncmp) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48e6be0 (libc.so.6:strcmp) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48e8040 (libc.so.6:memset) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x4901ca0 (libc.so.6:wcschr) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48e70a0 (libc.so.6:strnlen) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48e6c70 (libc.so.6:strcspn) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48e82a0 (libc.so.6:strncasecmp) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48e6c40 (libc.so.6:strcpy) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48e83e0 (libc.so.6:memcpy@@GLIBC_2.14) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x49034d0 (libc.so.6:wcsnlen) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48e71c0 (libc.so.6:strpbrk) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48e6ba0 (libc.so.6:index) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48e7070 (libc.so.6:strlen) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48ee280 (libc.so.6:memrchr) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48e82f0 (libc.so.6:strcasecmp_l) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48e7ee0 (libc.so.6:memchr) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x4901db0 (libc.so.6:wcslen) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48e7460 (libc.so.6:strspn) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48e8220 (libc.so.6:stpncpy) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48e81f0 (libc.so.6:stpcpy) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48e98c0 (libc.so.6:strchrnul) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48e8340 (libc.so.6:strncasecmp_l) redirected to 0x482b1b0 (_vgnU_ifunc_wrapper)
+--4043-- REDIR: 0x48f6ef0 (libc.so.6:__strrchr_sse2) redirected to 0x48387d0 (__strrchr_sse2)
+--4043-- REDIR: 0x48f71e0 (libc.so.6:__strlen_sse2) redirected to 0x4838cc0 (__strlen_sse2)
+--4043-- REDIR: 0x48e3350 (libc.so.6:malloc) redirected to 0x4835710 (malloc)
+==4043== Warning: ignored attempt to set SIGKILL handler in sigaction();
+==4043==          the SIGKILL signal is uncatchable
+==4043== Warning: ignored attempt to set SIGSTOP handler in sigaction();
+==4043==          the SIGSTOP signal is uncatchable
+--4043-- REDIR: 0x4901430 (libc.so.6:__memset_sse2_unaligned) redirected to 0x483c790 (memset)
+--4043-- REDIR: 0x48e39a0 (libc.so.6:free) redirected to 0x4836940 (free)
+--4043-- REDIR: 0x4901000 (libc.so.6:__mempcpy_sse2_unaligned) redirected to 0x483d4a0 (mempcpy)
+--4043-- REDIR: 0x48f6ce0 (libc.so.6:__strchrnul_sse2) redirected to 0x483d390 (strchrnul)
+--4043-- REDIR: 0x48fbf40 (libc.so.6:__strcpy_sse2) redirected to 0x4838db0 (strcpy)
+--4043-- REDIR: 0x48e4120 (libc.so.6:calloc) redirected to 0x4837ab0 (calloc)
+--4043-- REDIR: 0x4901020 (libc.so.6:memcpy@GLIBC_2.2.5) redirected to 0x4839fa0 (memcpy@GLIBC_2.2.5)
+--4043-- REDIR: 0x48e7980 (libc.so.6:__GI_strstr) redirected to 0x483dac0 (__strstr_sse2)
+--4043-- REDIR: 0x48f1e30 (libc.so.6:__memcmp_sse2) redirected to 0x483bf40 (__memcmp_sse2)
+--4043-- REDIR: 0x48ee5f0 (libc.so.6:__strcmp_sse2) redirected to 0x4839da0 (__strcmp_sse2)
+--4043-- REDIR: 0x48e3bf0 (libc.so.6:realloc) redirected to 0x4837d00 (realloc)
+==4043== 
+==4043== HEAP SUMMARY:
+==4043==     in use at exit: 0 bytes in 0 blocks
+==4043==   total heap usage: 68 allocs, 68 frees, 326,946 bytes allocated
+==4043== 
+==4043== All heap blocks were freed -- no leaks are possible
+==4043== 
+==4043== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+==4043== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)

@@ -126,15 +126,22 @@ int main(int argc, char *argv[])
 #endif
 
     struct addrinfo *tmp = NULL;
+    int bind_ret = 0, binded = 0;
     for(tmp = new_addr; tmp != NULL; tmp = tmp->ai_next)
     {
-        int bind_ret = bind(server_fd, tmp->ai_addr, new_addr->ai_addrlen);
-        if (bind_ret < 0)
+        bind_ret = bind(server_fd, tmp->ai_addr, new_addr->ai_addrlen);
+        if (bind_ret != -1)
         {
-            syslog(LOG_ERR, "bind: %s", strerror(errno));
-            freeaddrinfo(new_addr);
-            return EXIT_FAILURE;
+            binded = 1;
+            break;
         }
+    }
+
+    if(!binded)
+    {
+        syslog(LOG_ERR, "bind: %s", strerror(errno));
+        freeaddrinfo(new_addr);
+        return EXIT_FAILURE;
     }
 
     freeaddrinfo(new_addr);
