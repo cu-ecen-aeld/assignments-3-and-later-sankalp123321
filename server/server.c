@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
 
     openlog("aesdsocket", LOG_CONS | LOG_PERROR | LOG_PID, LOG_USER);
 
-    int write_to_fd = open(TEMP_FILE, O_RDWR | O_CREAT | O_APPEND, S_IRWXU | S_IRWXO);
+    int write_to_fd = open(TEMP_FILE, O_RDWR | O_CREAT | O_APPEND);
     if (write_to_fd < 0)
     {
         syslog(LOG_ERR, "open file: %s", strerror(errno));
