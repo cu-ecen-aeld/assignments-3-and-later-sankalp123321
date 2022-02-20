@@ -7,9 +7,9 @@ C_FLAGS=-I. -g -Wall
 # Include file if any exists
 C_INCLUDE=.
 # Obj file name
-C_OBJ=build/server.o
+C_OBJ=build/aesdsocket.o
 # Source file name
-C_SRC=server.c
+C_SRC=aesdsocket.c
 
 # Command line variable
 CROSS_COMPILE = 
