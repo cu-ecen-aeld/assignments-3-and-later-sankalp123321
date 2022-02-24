@@ -23,6 +23,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <pthread.h>
+#include <time.h>
 #include "queue.h"
 
 #define _DEBUG_
@@ -33,6 +34,8 @@
 #define ALLOWED_BACKLOG_CONNS 10
 #define PORT "9000"
 
+pthread_t threadCleanUp;
+pthread_t threadTimeStamp;
 int server_fd;
 
 void *get_in_addr(struct sockaddr *sa)
@@ -58,7 +61,8 @@ void gracefulShutdonw()
         ret = EXIT_FAILURE;
 
     remove(TEMP_FILE);
-
+    pthread_kill(threadCleanUp, SIGKILL);
+    pthread_kill(threadTimeStamp, SIGKILL);
     _exit(ret);
 }
 
@@ -76,16 +80,17 @@ struct ThreadIDStruct
     int clienFd;
     int fileFd;
     const char* strip;
-    pthread_mutex_t *gmutex;
     TAILQ_ENTRY(ThreadIDStruct) nextThread;
 };
 TAILQ_HEAD(head_s, ThreadIDStruct) threadHead;
 static int write_to_fd = 0;
 
+pthread_mutex_t *gmutex = NULL;
+
 void* connectionThread(void* args)
 {
     struct ThreadIDStruct *threadStruct = (struct ThreadIDStruct *)args;
-    printf("STarting thread %d\n", (int)threadStruct->tID);
+    printf("STarting thread %ld\n", threadStruct->tID);
     uint8_t *buf = (uint8_t *)malloc(MAX_BUFFER_SIZE);
     if (buf == NULL)
     {
@@ -122,16 +127,13 @@ void* connectionThread(void* args)
                 if (buf[i] == '\n')
                 {
                     found_a_packet = 1;
-                    pthread_mutex_lock(threadStruct->gmutex);
+                    pthread_mutex_lock(gmutex);
                     int ret = write(write_to_fd, buf, strlen((char *)buf));
-                    pthread_mutex_unlock(threadStruct->gmutex);
                     if (ret == strlen((char *)buf))
-                    {
-                    
+                    {    
 #ifdef _DEBUG_
                         printf("success in writing %ld bytes.\n", strlen((char *)buf));
 #endif
-
                         free(buf);
                     }
                     shouldSend = 0;
@@ -221,8 +223,9 @@ void* connectionThread(void* args)
 #endif
 
     }
+    pthread_mutex_unlock(gmutex);
     threadStruct->isProcessingComplete = 1;
-    // pthread_mutex_unlock(threadStruct->gmutex);
+    // pthread_mutex_unlock(gmutex);
     close(threadStruct->clienFd);
     syslog(LOG_INFO, "Closed connection from %s\n", threadStruct->strip);
 
@@ -237,13 +240,56 @@ void* connectionCleanUpThread(void* args)
     struct ThreadIDStruct *peruse = NULL;
     while (1)
     {
-        // TAILQ_FOREACH(peruse, &threadHead, nextThread)
-        // {
-        //     if(peruse->isProcessingComplete)
-        //     {
-        //         pthread_join(peruse->tID, NULL);
-        //     }
-        // }
+        TAILQ_FOREACH(peruse, &threadHead, nextThread)
+        {
+            if(peruse->isProcessingComplete)
+            {
+                printf("Joining thread[%ld]\n", peruse->tID);
+                pthread_join(peruse->tID, NULL);
+                TAILQ_REMOVE(&threadHead, peruse, nextThread);
+                if(peruse != NULL)
+                    free(peruse);
+            }
+        }
+        usleep(1);
+    }
+    return NULL;
+}
+
+void* timeStampUpdater(void* args)
+{
+    while (1)
+    {
+        sleep(10);
+        char outstr[200];
+        const char* str = "timestamp:";
+        time_t tim;
+        struct tm* tmp;
+        
+        tim = time(NULL);
+        tmp = localtime(&tim);
+        if(tmp == NULL)
+        {
+            syslog(LOG_ERR, "time: %s", strerror(errno));
+        }
+
+        if(strftime(outstr, sizeof outstr, "%a, %d %b %Y %T", tmp) == 0)
+        {
+            // error
+        }
+
+        
+        if(write_to_fd < 0) continue;
+        pthread_mutex_lock(gmutex);
+        outstr[strlen(outstr)] = '\n';
+        int ret = write(write_to_fd, str, strlen(str));
+        ret = write(write_to_fd, outstr, strlen(outstr));
+        // ret = write(write_to_fd, (const char*)'\n', 1);
+        if (ret < 0)
+        {    
+            syslog(LOG_ERR, "write: %s", strerror(errno));
+        }
+        pthread_mutex_unlock(gmutex);
     }
     return NULL;
 }
@@ -261,7 +307,7 @@ int main(int argc, char *argv[])
     signal(SIGTERM, gracefulShutdonw);
 
     openlog("aesdsocket", LOG_CONS | LOG_PERROR | LOG_PID, LOG_USER);
-
+    
     write_to_fd = open(TEMP_FILE, O_RDWR | O_CREAT | O_APPEND);
     if (write_to_fd < 0)
     {
@@ -274,7 +320,7 @@ int main(int argc, char *argv[])
     {
         syslog(LOG_ERR, "mutex: %s", strerror(errno));
     }
-
+    gmutex = &mutex;
     struct addrinfo s_addr, *new_addr;
     struct sockaddr_storage client_addr;
     memset(&s_addr, 0, sizeof(s_addr));
@@ -356,9 +402,9 @@ int main(int argc, char *argv[])
         }
     }
 
-    pthread_t threadCleanUp;
+    
     int ret_pthread = pthread_create(&threadCleanUp, NULL, connectionCleanUpThread, &threadHead);
-
+    ret_pthread = pthread_create(&threadTimeStamp, NULL, timeStampUpdater, NULL);
     while (1)
     {
 
@@ -414,7 +460,6 @@ int main(int argc, char *argv[])
         tStruct->clienFd = new_fd;
         tStruct->isProcessingComplete = 0;
         tStruct->tID = 0;
-        tStruct->gmutex = &mutex;
         tStruct->strip = (const char*)&str_ip;
         // Create a thread here
         pthread_t thread;
