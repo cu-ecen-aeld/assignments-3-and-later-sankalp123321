@@ -3,13 +3,13 @@ APP_NAME=aesdsocket
 # compiler
 GCC=gcc
 # Compiler flags
-C_FLAGS=-I. -g -Wall
+C_FLAGS=-I. -g -Wall -lpthread
 # Include file if any exists
 C_INCLUDE=.
 # Obj file name
-C_OBJ=build/aesdsocket.o
+C_OBJ=build/aesdsocketThread.o
 # Source file name
-C_SRC=aesdsocket.c
+C_SRC=aesdsocketThread.c
 
 # Command line variable
 CROSS_COMPILE = 
