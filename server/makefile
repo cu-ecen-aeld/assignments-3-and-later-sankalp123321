@@ -3,7 +3,9 @@ APP_NAME=aesdsocket
 # compiler
 GCC=gcc
 # Compiler flags
-C_FLAGS=-I. -g -Wall -lpthread
+ifeq ($(CFLAGS),)
+	C_FLAGS=-I. -g -Wall -lpthread
+endif
 # Include file if any exists
 C_INCLUDE=.
 # Obj file name
@@ -14,7 +16,9 @@ C_SRC=aesdsocketThread.c
 # Command line variable
 CROSS_COMPILE = 
 # Append command line variable string
-CC:=$(CROSS_COMPILE)$(GCC)
+ifeq ($(CC),)
+	CC:=$(CROSS_COMPILE)$(GCC)
+endif
 
 # Generate the object file using the source file
 build/%.o : %.c $(C_INCLUDE)
