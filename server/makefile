@@ -4,8 +4,13 @@ APP_NAME=aesdsocket
 GCC=gcc
 # Compiler flags
 ifeq ($(CFLAGS),)
-	C_FLAGS=-I. -g -Wall -Werror -lpthread -lrt
+	C_FLAGS=-I. -g -Wall -Werror 
 endif
+
+ifeq ($(LDFLAGS),)
+	LDFLAGS= -pthread -lrt
+endif
+
 # Include file if any exists
 C_INCLUDE=.
 # Obj file name
@@ -29,7 +34,7 @@ default: $(APP_NAME)
 
 # Generate the app using the object file
 $(APP_NAME) : $(C_OBJ)
-	$(CC) -o $@ $^ $(C_FLAGS)
+	$(CC) $(LDFLAGS) -o $@ $^ $(C_FLAGS)
 
 #clean the artifacts
 clean:
