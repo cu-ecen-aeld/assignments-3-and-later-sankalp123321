@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <poll.h>
 #include <fcntl.h>
 #include <syslog.h>
 #include <errno.h>
@@ -34,6 +35,7 @@
 #define ALLOWED_BACKLOG_CONNS 10
 #define PORT "9000"
 
+static volatile sig_atomic_t rcvdSignal = 0;
 static int write_to_fd = 0;
 
 pthread_mutex_t *gmutex = NULL;
@@ -65,6 +67,11 @@ void *get_in_addr(struct sockaddr *sa)
 }
 
 
+/**
+ * @brief Function borrowed from:
+ *        https://blog.taborkelly.net/programming/c/2016/01/09/sys-queue-example.html
+ *  
+ */
 // Removes all of the elements from the queue before free()ing them.
 static void freeQueue(ThreadHead * head)
 {
@@ -79,12 +86,19 @@ static void freeQueue(ThreadHead * head)
 }
 
 
-void gracefulShutdonw()
+void signalHandler()
+{
+#ifdef _DEBUG_
+    printf("Caught Signal, exiting\n");
+#endif
+    rcvdSignal = 1;
+}
+
+int gracefulShutdonw()
 {
     int ret = EXIT_SUCCESS;
 
-    printf("Caught Signal, exiting\n");
-
+    unlink(TEMP_FILE);
     pthread_kill(threadCleanUp, SIGKILL);
     pthread_kill(threadTimeStamp, SIGKILL);
 
@@ -115,9 +129,8 @@ void gracefulShutdonw()
     if (close(write_to_fd))
         ret = EXIT_FAILURE;
 
-    unlink(TEMP_FILE);
     closelog();
-    _exit(ret);
+    return ret;
 }
 
 void cleanBeforeExit(int fd1, int fd2)
@@ -130,7 +143,9 @@ void cleanBeforeExit(int fd1, int fd2)
 void *connectionThread(void *args)
 {
     struct ThreadIDStruct *threadStruct = (struct ThreadIDStruct *)args;
+#ifdef _DEBUG_
     printf("STarting thread %ld\n", threadStruct->tID);
+#endif
     uint8_t *buf = malloc(MAX_BUFFER_SIZE);
     if (buf == NULL)
     {
@@ -142,6 +157,7 @@ void *connectionThread(void *args)
     uint16_t total_buf_size = 0, realloc_count = 1;
     memset(buf, 0, buffer_size);
     uint8_t shouldSend = 1;
+
     while (shouldSend)
     {
         uint8_t found_a_packet = 0;
@@ -167,7 +183,13 @@ void *connectionThread(void *args)
                 if (buf[i] == '\n')
                 {
                     found_a_packet = 1;
-                    pthread_mutex_lock(gmutex);
+                    int ret_mutex = 0;
+                    if ((ret_mutex = pthread_mutex_lock(gmutex)) != 0)
+                    {
+                        syslog(LOG_ERR, "Mutex error %d\n", ret_mutex);
+                        return NULL;
+                    }
+
                     int ret = write(write_to_fd, buf, strlen((char *)buf));
                     if (ret == strlen((char *)buf))
                     {
@@ -188,8 +210,7 @@ void *connectionThread(void *args)
                 {
                     syslog(LOG_ERR, "ENOMEM");
                     free(buf);
-                    // cleanBeforeExit(write_to_fd, server_fd);
-                    // return EXIT_FAILURE;
+                    return NULL;
                 }
                 total_buf_size += buffer_size;
 
@@ -200,26 +221,8 @@ void *connectionThread(void *args)
         }
         else if (ret_val < 0)
         {
-            switch (errno)
-            {
-            case EINTR:
-                continue;
-                break;
-            case ENOTSOCK:
-            case ENOTCONN:
-            case EFAULT:
-            case EBADF:
-            case ECONNREFUSED:
-            {
-                syslog(LOG_ERR, "recv: %s", strerror(errno));
-                free(buf);
-                // cleanBeforeExit(write_to_fd, server_fd);
-                // return EXIT_FAILURE;
-            }
-            break;
-            default:
-                break;
-            }
+            syslog(LOG_ERR, "recv: %s", strerror(errno));
+            free(buf);
         }
     }
     uint8_t buffer[MAX_BUFFER_SIZE];
@@ -261,7 +264,13 @@ void *connectionThread(void *args)
 #endif
     }
     threadStruct->isProcessingComplete = 1;
-    pthread_mutex_unlock(gmutex);
+    int ret_mutex = 0;
+    if ((ret_mutex = pthread_mutex_unlock(gmutex)) != 0)
+    {
+        syslog(LOG_ERR, "Mutex error %d\n", ret_mutex);
+        return NULL;
+    }
+
     // pthread_mutex_unlock(gmutex);
     
     syslog(LOG_INFO, "Closed connection from %s\n", threadStruct->strip);
@@ -275,7 +284,9 @@ void *connectionThread(void *args)
 void *connectionCleanUpThread(void *args)
 {
     ThreadHead *tHead = args;
+#ifdef _DEBUG_
     static uint8_t count = 0;
+#endif
     struct ThreadIDStruct *peruse = NULL;
     while (1)
     {
@@ -292,8 +303,10 @@ void *connectionCleanUpThread(void *args)
 
                 }
                 TAILQ_REMOVE(tHead, peruse, nextThread);
+#ifdef _DEBUG_
                 printf("CLeaning thread [%d] iscomplete [%d] count[%d]\n", \
                     peruse->clienFd, peruse->isProcessingComplete, count++);
+#endif
                 free(peruse);
                 peruse = NULL;
                 break;
@@ -326,14 +339,15 @@ void *timeStampUpdater(void *args)
         {
             // error
         }
-        // if(tmp != NULL)
-        // {
-        //     free(tmp);
-        // }
 
         if (write_to_fd < 0)
             continue;
-        pthread_mutex_lock(gmutex);
+        int ret_mutex = 0;
+        if ((ret_mutex = pthread_mutex_lock(gmutex)) != 0)
+        {
+            syslog(LOG_ERR, "Mutex error %d\n", ret_mutex);
+            return NULL;
+        }
         outstr[strlen(outstr)] = '\n';
         int ret = write(write_to_fd, str, strlen(str));
         ret = write(write_to_fd, outstr, strlen(outstr));
@@ -342,7 +356,11 @@ void *timeStampUpdater(void *args)
         {
             syslog(LOG_ERR, "write: %s", strerror(errno));
         }
-        pthread_mutex_unlock(gmutex);
+        if ((ret_mutex = pthread_mutex_unlock(gmutex)) != 0)
+        {
+            syslog(LOG_ERR, "Mutex error %d\n", ret_mutex);
+            return NULL;
+        }
     }
     return NULL;
 }
@@ -354,14 +372,14 @@ int main(int argc, char *argv[])
     pthread_mutex_t mutex;
     TAILQ_INIT(&threadHead);
 
-    signal(SIGINT, gracefulShutdonw);
-    signal(SIGKILL, gracefulShutdonw);
-    signal(SIGSTOP, gracefulShutdonw);
-    signal(SIGTERM, gracefulShutdonw);
+    signal(SIGINT, signalHandler);
+    signal(SIGKILL, signalHandler);
+    signal(SIGSTOP, signalHandler);
+    signal(SIGTERM, signalHandler);
 
     openlog("aesdsocket", LOG_CONS | LOG_PERROR | LOG_PID, LOG_USER);
 
-    write_to_fd = open(TEMP_FILE, O_RDWR | O_CREAT | O_APPEND);
+    write_to_fd = open(TEMP_FILE, O_RDWR | O_CREAT | O_APPEND, 0755);
     if (write_to_fd < 0)
     {
         syslog(LOG_ERR, "open file: %s", strerror(errno));
@@ -456,23 +474,84 @@ int main(int argc, char *argv[])
     }
 
     int ret_pthread = pthread_create(&threadCleanUp, NULL, connectionCleanUpThread, &threadHead);
-    ret_pthread = pthread_create(&threadTimeStamp, NULL, timeStampUpdater, NULL);
-    while (1)
+    if (ret_pthread != 0)
     {
-        static uint8_t count = 0;
+        syslog(LOG_INFO, "Thread creation error.\n");
+#ifdef _DEBUG_
+        printf("Thread creation error %d\n", ret_pthread);
+#endif
+        return EXIT_FAILURE;
+    }
+    ret_pthread = pthread_create(&threadTimeStamp, NULL, timeStampUpdater, NULL);
+    if (ret_pthread != 0)
+    {
+        syslog(LOG_INFO, "Thread creation error.\n");
+#ifdef _DEBUG_
+        printf("Thread creation error %d\n", ret_pthread);
+#endif
+        return EXIT_FAILURE;
+    }
+
+
 #ifdef _DEBUG_
         printf("Listening on the socket.\n");
 #endif
+    int listen_ret = listen(server_fd, ALLOWED_BACKLOG_CONNS);
+    if (listen_ret < 0)
+    {
+        syslog(LOG_ERR, "listen: %s", strerror(errno));
+        cleanBeforeExit(write_to_fd, server_fd);
+        return EXIT_FAILURE;
+    }
 
-        int listen_ret = listen(server_fd, ALLOWED_BACKLOG_CONNS);
-        if (listen_ret < 0)
+    /**
+     * @brief Pollfd provides a much better signaling mechanism
+     *        Amazing design choice:
+     * 
+     *        https://wiki.sei.cmu.edu/confluence/display/c/SIG30-C.+Call+only+asynchronous-safe+functions+within+signal+handlers
+     */
+    struct pollfd pStruct[1];
+    pStruct[0].fd = server_fd;
+    pStruct[0].events = POLLIN;
+
+    while (!rcvdSignal)
+    {
+#ifdef _DEBUG_
+        static uint8_t count = 0;
+#endif
+        socklen_t add_size = sizeof(client_addr);
+        struct sockaddr *sck_addr = (struct sockaddr *)&client_addr;
+
+        int ret_poll = poll(pStruct, (sizeof pStruct/sizeof pStruct[0]), 10);
+        if(ret_poll < 0)
         {
-            syslog(LOG_ERR, "listen: %s", strerror(errno));
+            syslog(LOG_ERR, "poll: %s", strerror(errno));
             cleanBeforeExit(write_to_fd, server_fd);
             return EXIT_FAILURE;
         }
-        socklen_t add_size = sizeof(client_addr);
-        struct sockaddr *sck_addr = (struct sockaddr *)&client_addr;
+        else if(ret_poll == 0)
+        {
+            continue;
+        }
+        else if(ret_poll > 0)
+        {
+            uint8_t found = 0;
+            for (size_t i = 0; i < ret_poll; i++)
+            {
+                if(pStruct[i].revents == POLLIN)
+                {
+                    found = 1;
+                }
+                else
+                {
+                    found = 0;
+                }
+            }   
+            if(!found)
+            {
+                continue;
+            }
+        }
 
 #ifdef _DEBUG_
         printf("Accpet new connection.\n");
@@ -519,15 +598,18 @@ int main(int argc, char *argv[])
         ret_pthread = pthread_create(&thread, NULL, connectionThread, tStruct);
         if (ret_pthread != 0)
         {
+            syslog(LOG_INFO, "Thread creation error.\n");
 #ifdef _DEBUG_
             printf("Thread creation error %d\n", ret_pthread);
 #endif
+            return EXIT_FAILURE;
         }
         tStruct->tID = thread;
+#ifdef _DEBUG_
         printf("ThreadCreat COunt[%d]", count++);
+#endif
         TAILQ_INSERT_TAIL(&threadHead, tStruct, nextThread);
-        // close(new_fd);
     }
-    cleanBeforeExit(write_to_fd, server_fd);
-    return EXIT_SUCCESS;
+    
+    return gracefulShutdonw();
 }

@@ -4,7 +4,7 @@ APP_NAME=aesdsocket
 GCC=gcc
 # Compiler flags
 ifeq ($(CFLAGS),)
-	C_FLAGS=-I. -g -Wall -lpthread -lrt
+	C_FLAGS=-I. -g -Wall -Werror -lpthread -lrt
 endif
 # Include file if any exists
 C_INCLUDE=.
