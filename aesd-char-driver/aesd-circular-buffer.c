@@ -12,6 +12,7 @@
 #include <linux/string.h>
 #else
 #include <string.h>
+#include <stdio.h>
 #endif
 
 #include "aesd-circular-buffer.h"
@@ -36,12 +37,6 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
     
     if(entry_offset_byte_rtn == NULL) return NULL;
 
-    if(char_offset <= 0)
-    {
-        *entry_offset_byte_rtn = 0;
-        return &buffer->entry[0];
-    }
-
     uint8_t totalElementsInTheList = 0;
     if(buffer->in_offs == buffer->out_offs)
     {
@@ -65,16 +60,22 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
             totalElementsInTheList = buffer->out_offs - buffer->in_offs + 1;
         }
     }
-    for (uint16_t i = 0; i < totalElementsInTheList; i++)
+    for (uint16_t i = buffer->out_offs; i < totalElementsInTheList;)
     {
-        if(char_offset < buffer->entry[i].size)
+        if((char_offset < buffer->entry[i].size) || !char_offset)
         {
-            *entry_offset_byte_rtn = buffer->entry[i].size - char_offset;
-            return &buffer->entry[i];
+            *entry_offset_byte_rtn = char_offset;
+	    return &buffer->entry[i];
         }
         char_offset = char_offset - buffer->entry[i].size;
+	i = (i+1);
+	if(i == AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED)
+        {
+            totalElementsInTheList = buffer->out_offs;
+	    i = 0;
+        }
     }
-    
+    *entry_offset_byte_rtn = char_offset; 
     return NULL;
 }
 
