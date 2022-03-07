@@ -53,3 +53,13 @@ Code: d2800001 d2800000 d503233f d50323bf (b900003f)
 ---[ end trace d3a7c1643fab6a14 ]---     
 
 ## Analysis
+
+The Kernel dump tells us a lot of things about where and why the error occoured.  
+The kerel dump points to various aspects of thr memory. A lot of this is platform dpenedent and this makes sens because the app runs on a aprticular architecture.   
+ISA might not be same around different architectures. In the kernel dump above we can see that the we get an error saying <code>"Unable to handle kernel NULL pointer dereference at virtual address 0000000000000000" </code>    
+This says that the dump was because of dereferencing a null pointer at address 0.  
+The dump says <code>Internal error: Oops: 96000046 [#1] SMP</code> #1 means <code>Internal error: Oops: 96000046 [#1] SMP</code>.  
+It points out to CPU 0 with PID 152 which crashed.   
+The dump points to all the intermediate registers of the architecture and what thier values were at the time of the crash. The PC points to <code>faulty_write+0x10/0x20 [faulty]</code> which means that the error occoured on faulty_write+0x10 address which is the address which caused the null pointer dereference on address 0. The pgd p4d pmd are the page tables.    
+
+The call stack shows how each function is executed and what address relative to the function name is instrunction being executed, i.e. the line at which the fault occoured. The the flow of a call stack is reverse, the faulty_write is the latest function which is executed. And faulty_write+0x10 instruction causes the crash and kernel dump.
