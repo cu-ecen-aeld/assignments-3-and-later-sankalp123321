@@ -17,11 +17,13 @@
 #include <linux/types.h>
 #include <linux/cdev.h>
 #include <linux/fs.h> // file_operations
+#include <string.h>
+#include "aesd-circular-buffer.h"
 #include "aesdchar.h"
 int aesd_major =   0; // use dynamic major
 int aesd_minor =   0;
 
-MODULE_AUTHOR("Your Name Here"); /** TODO: fill in your name **/
+MODULE_AUTHOR("Sankalp Agrawal"); /** TODO: fill in your name **/
 MODULE_LICENSE("Dual BSD/GPL");
 
 struct aesd_dev aesd_device;
@@ -32,6 +34,11 @@ int aesd_open(struct inode *inode, struct file *filp)
 	/**
 	 * TODO: handle open
 	 */
+	struct aesd_dev* aDev = container_of(inode->i_cdev, struct aesd_dev, cdev);
+	filp->private_data = aDev;
+	aDev->isComplete = 1;
+	aDev->element = kmalloc(sizeof(struct aesd_buffer_entry));
+	aesd_circular_buffer_init(&aDev->circularBuffer);
 	return 0;
 }
 
@@ -41,28 +48,104 @@ int aesd_release(struct inode *inode, struct file *filp)
 	/**
 	 * TODO: handle release
 	 */
+	struct aesd_dev* aDev = container_of(inode->i_cdev, struct aesd_dev, cdev);
 	return 0;
 }
 
 ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
                 loff_t *f_pos)
 {
-	ssize_t retval = 0;
+	ssize_t retval = 0, temp = 0, i = 0;
 	PDEBUG("read %zu bytes with offset %lld",count,*f_pos);
 	/**
 	 * TODO: handle read
 	 */
+	struct aesd_dev* aDev = container_of(inode->i_cdev, struct aesd_dev, cdev);
+	for (i = 0;;)
+	{
+		aDev->element = *aesd_circular_buffer_find_entry_offset_for_fpos(&aDev->circularBuffer, *f_pos, &temp);
+		if(aDev->element.size > count)
+		{
+			copy_to_user(buf, lBuffptr, count);
+		}
+		else
+		{
+
+		}
+	}
+	
 	return retval;
 }
 
 ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
                 loff_t *f_pos)
 {
-	ssize_t retval = -ENOMEM;
+	ssize_t retval = -ENOMEM, i = 0;
+	const char* lBuffptr = NULL;
+	// remove this
+	struct aesd_dev* aDev = (struct aesd_dev*)filp->private_data;
+	lBuffptr = aDev->element->buffptr;
 	PDEBUG("write %zu bytes with offset %lld",count,*f_pos);
 	/**
 	 * TODO: handle write
 	 */
+	
+	printk(KERNEL_INFO "Mallocing %d bytes.\n", count);
+	
+	if(aDev->isComplete)
+	{
+		lBuffptr = kmalloc(count*sizeof(uint8_t), GFP_KERNEL);
+		if(aDev->element == NULL)
+		{
+			printk(KERNEL_ERR "Mallocing failed %d.\n", __LINE__);
+		}
+	}
+	else if(!aDev->isComplete)
+	{
+		lBuffptr = krealloc(lBuffptr, aDev->element.size + count*sizeof(uint8_t), GFP_KERNEL);
+		if(aDev->element == NULL)
+		{
+			printk(KERNEL_ERR "Mallocing failed %d.\n", __LINE__);
+		}
+		else
+		{
+			lBuffptr += aDev->element.size;
+		}
+	}
+	if(!copy_from_user(lBuffptr, buf, count))
+	{
+		printk(KERNEL_INFO "Successful in copying %d bytes.\n", count);
+		aDev->element.size += count;
+		retval = count;
+	}
+	else
+	{
+		printk(KERNEL_ERR "Unuccessful in copying %d bytes.\n", count);
+	}
+
+	for (i = 0; i < aDev->element.size; i++)
+	{
+		if (lBuffptr[i] == '\n')
+		{
+			printk(KERNEL_INFO "New line found.\n");
+			// reset the flag
+			aDev->isComplete = 1;
+			// add the entry to the circular buffer
+			struct aesd_buffer_entry ret = aesd_circular_buffer_add_entry(&aDev->circularBuffer, &aDev->element);
+			
+			if(ret.buffptr != NULL)
+			{
+				printk(KERNEL_INFO "Freeing memory.\n");
+				kfree(ret.buffptr);
+			}
+		}
+		else 
+		{
+			aDev->isComplete = 0;
+		}
+		
+	}
+
 	return retval;
 }
 struct file_operations aesd_fops = {
@@ -107,6 +190,9 @@ int aesd_init_module(void)
 	 */
 
 	result = aesd_setup_cdev(&aesd_device);
+	aesd_device->isComplete = 1;
+	aesd_device->element = kmalloc(sizeof(struct aesd_buffer_entry));
+	aesd_circular_buffer_init(&aesd_device->circularBuffer);
 
 	if( result ) {
 		unregister_chrdev_region(dev, 1);
