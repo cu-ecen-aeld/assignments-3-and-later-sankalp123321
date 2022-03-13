@@ -113,7 +113,7 @@ struct aesd_buffer_entry aesd_circular_buffer_add_entry(struct aesd_circular_buf
         buffer->full = false;
     }
     buffer->entry[buffer->in_offs] = *add_entry;
-    printk(KERN_INFO "New element %s %d are added\n", buffer->entry[buffer->in_offs].buffptr, buffer->entry[buffer->in_offs].size);
+    printk(KERN_INFO "New element %s %ld are added\n", buffer->entry[buffer->in_offs].buffptr, buffer->entry[buffer->in_offs].size);
     buffer->in_offs = (buffer->in_offs + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
     if(buffer->in_offs == buffer->out_offs)
     {
