@@ -83,7 +83,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
                 loff_t *f_pos)
 {
-	ssize_t retval = -ENOMEM, i = 0;
+	ssize_t retval = count, i = 0;
 	char* lBuffptr = NULL;
 	// remove this
 	struct aesd_dev* aDev = (struct aesd_dev*)filp->private_data;
@@ -92,7 +92,6 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 		.buffptr = NULL,
 		.size = 0
 	};
-	lBuffptr = aDev->element->buffptr;
 	PDEBUG("write %zu bytes with offset %lld",count,*f_pos);
 	/**
 	 * TODO: handle write
@@ -102,27 +101,30 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 	
 	if(aDev->isComplete)
 	{
-		lBuffptr = kmalloc(count*sizeof(uint8_t), GFP_KERNEL);
-		if(aDev->element == NULL)
+		aDev->element->buffptr = kmalloc(count*sizeof(uint8_t), GFP_KERNEL);
+		if(aDev->element->buffptr == NULL)
 		{
 			printk(KERN_ERR "Mallocing failed %d.\n", __LINE__);
 		}
+		printk(KERN_INFO "Mallocke %p\n", aDev->element->buffptr);
+		lBuffptr = aDev->element->buffptr;
 	}
 	else if(!aDev->isComplete)
 	{
-		lBuffptr = krealloc(lBuffptr, aDev->element->size + count*sizeof(uint8_t), GFP_KERNEL);
+		aDev->element->buffptr = krealloc(lBuffptr, aDev->element->size + count*sizeof(uint8_t), GFP_KERNEL);
 		if(aDev->element == NULL)
 		{
 			printk(KERN_ERR "Mallocing failed %d.\n", __LINE__);
 		}
 		else
 		{
+			lBuffptr = aDev->element->buffptr;
 			lBuffptr += aDev->element->size;
 		}
 	}
 	if(!copy_from_user(lBuffptr, buf, count))
 	{
-		printk(KERN_INFO "Successful in copying %ld bytes.\n", count);
+		printk(KERN_INFO "Successful in copying %ld bytes. %s %s\n", count, lBuffptr, aDev->element->buffptr);
 		aDev->element->size += count;
 		retval = count;
 	}
@@ -140,10 +142,10 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 			aDev->isComplete = 1;
 			// add the entry to the circular buffer
 			ret = aesd_circular_buffer_add_entry(&aDev->circularBuffer, aDev->element);
-			
+			aDev->element->size = 0;
 			if(ret.buffptr != NULL)
 			{
-				printk(KERN_INFO "Freeing memory.\n");
+				printk(KERN_INFO "Freeing memory. %p\n", ret.buffptr);
 				kfree(ret.buffptr);
 			}
 		}
@@ -197,11 +199,12 @@ int aesd_init_module(void)
 	 * TODO: initialize the AESD specific portion of the device
 	 */
 
-	result = aesd_setup_cdev(&aesd_device);
+
 	aesd_device.isComplete = 1;
 	aesd_device.element = kmalloc(sizeof(struct aesd_buffer_entry), GFP_KERNEL);
 	aesd_circular_buffer_init(&aesd_device.circularBuffer);
 
+	result = aesd_setup_cdev(&aesd_device);
 	if( result ) {
 		unregister_chrdev_region(dev, 1);
 	}
