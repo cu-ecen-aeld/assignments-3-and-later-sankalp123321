@@ -8,7 +8,6 @@
 #ifndef AESD_CHAR_DRIVER_AESDCHAR_H_
 #define AESD_CHAR_DRIVER_AESDCHAR_H_
 
-#include <pthread.h>
 #include "aesd-circular-buffer.h"
 
 #define AESD_DEBUG 1  //Remove comment on this line to enable debug
@@ -32,7 +31,7 @@ struct aesd_dev
 	 * TODO: Add structure(s) and locks needed to complete assignment requirements
 	 */
 	struct cdev cdev;	  /* Char device structure		*/
-	pthread_mutex_t lock;	/* mutex lock		*/
+	struct mutex lock;	/* mutex lock		*/
 	struct aesd_circular_buffer circularBuffer;	/* buffer		*/
 	struct aesd_buffer_entry *element;	/* circular buffer element		*/
 	int isComplete;

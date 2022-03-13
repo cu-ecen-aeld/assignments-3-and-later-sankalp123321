@@ -9,6 +9,8 @@
  */
 
 #ifdef __KERNEL__
+#include <linux/init.h>
+#include <linux/module.h>
 #include <linux/string.h>
 #include <linux/printk.h>
 #else
@@ -34,11 +36,14 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
     /**
     * TODO: implement per description
     */
+    
+    uint8_t totalElementsInTheList = 0;
+    uint16_t i = 0;
     if(buffer == NULL) return NULL;
     
     if(entry_offset_byte_rtn == NULL) return NULL;
 
-    uint8_t totalElementsInTheList = 0;
+
     if(buffer->in_offs == buffer->out_offs)
     {
         if(buffer->full)
@@ -61,7 +66,7 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
             totalElementsInTheList = buffer->out_offs - buffer->in_offs + 1;
         }
     }
-    for (uint16_t i = buffer->out_offs; i < totalElementsInTheList;)
+    for (i = buffer->out_offs; i < totalElementsInTheList;)
     {
         if((char_offset < buffer->entry[i].size) || !char_offset)
         {
@@ -97,9 +102,9 @@ struct aesd_buffer_entry aesd_circular_buffer_add_entry(struct aesd_circular_buf
         .buffptr = NULL, 
         .size= 0
     };
-    if (buffer == NULL) return;
+    if (buffer == NULL) return ret;
 
-    if (add_entry == NULL) return;
+    if (add_entry == NULL) return ret;
     
     if(buffer->full == true)
     {
@@ -108,7 +113,7 @@ struct aesd_buffer_entry aesd_circular_buffer_add_entry(struct aesd_circular_buf
         buffer->full = false;
     }
     buffer->entry[buffer->in_offs] = *add_entry;
-    printk(KERNEL_INFO "New element %s %d are added\n", buffer->entry[buffer->in_offs].buffptr, buffer->entry[buffer->in_offs].size);
+    printk(KERN_INFO "New element %s %d are added\n", buffer->entry[buffer->in_offs].buffptr, buffer->entry[buffer->in_offs].size);
     buffer->in_offs = (buffer->in_offs + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
     if(buffer->in_offs == buffer->out_offs)
     {
