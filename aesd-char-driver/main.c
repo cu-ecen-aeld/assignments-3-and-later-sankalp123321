@@ -46,6 +46,7 @@ int aesd_release(struct inode *inode, struct file *filp)
 	 * TODO: handle release
 	 */
 	struct aesd_dev* aDev = container_of(inode->i_cdev, struct aesd_dev, cdev);
+	(void)aDev;
 	PDEBUG("release");
 	return 0;
 }
@@ -53,21 +54,22 @@ int aesd_release(struct inode *inode, struct file *filp)
 ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
                 loff_t *f_pos)
 {
-	const char* lBuffptr = NULL;
+	char* lBuffptr = NULL;
 	ssize_t retval = 0, temp = 0, i = 0;
 	/**
 	 * TODO: handle read
 	 */
-	lBuffptr = aDev->element->buffptr;
-	struct aesd_dev* aDev = (struct aesd_dev*)filp->private_data;
+	struct aesd_dev* aDev = NULL;
 	struct aesd_buffer_entry *entry;
+	lBuffptr = aDev->element->buffptr;
+	aDev = (struct aesd_dev*)filp->private_data;
 	PDEBUG("read %zu bytes with offset %lld",count,*f_pos);
 	for (i = 0;;)
 	{
 		entry = aesd_circular_buffer_find_entry_offset_for_fpos(&aDev->circularBuffer, *f_pos, &temp);
 		if(entry->size > count)
 		{
-			copy_to_user(buf, lBuffptr, count);
+			// copy_to_user(buf, lBuffptr, count);
 		}
 		else
 		{
@@ -96,7 +98,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 	 * TODO: handle write
 	 */
 	
-	printk(KERN_INFO "Mallocing %d bytes.\n", count);
+	printk(KERN_INFO "Mallocing %ld bytes.\n", count);
 	
 	if(aDev->isComplete)
 	{
@@ -120,13 +122,13 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 	}
 	if(!copy_from_user(lBuffptr, buf, count))
 	{
-		printk(KERN_INFO "Successful in copying %d bytes.\n", count);
+		printk(KERN_INFO "Successful in copying %ld bytes.\n", count);
 		aDev->element->size += count;
 		retval = count;
 	}
 	else
 	{
-		printk(KERN_ERR "Unuccessful in copying %d bytes.\n", count);
+		printk(KERN_ERR "Unuccessful in copying %ld bytes.\n", count);
 	}
 
 	for (i = 0; i < aDev->element->size; i++)
