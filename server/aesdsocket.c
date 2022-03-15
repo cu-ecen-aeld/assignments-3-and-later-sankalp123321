@@ -33,7 +33,7 @@
 #define IP_MAX_LEN 100
 #define MAX_BUFFER_SIZE 1024
 #ifdef USE_AESD_CHAR_DEVICE
-    #define TEMP_FILE /dev/aesdchar 
+    #define TEMP_FILE "/dev/aesdchar"
 #else
     #define TEMP_FILE "/var/tmp/aesdsocketdata"
 #endif
