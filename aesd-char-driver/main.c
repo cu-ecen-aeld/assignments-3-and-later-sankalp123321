@@ -78,7 +78,6 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 		mutex_unlock(&aDev->lock);
 		if(entry == NULL)
 		{
-			printk(KERN_INFO "returning from here\n");
 			//continue;
 			return -EFAULT;
 		}
