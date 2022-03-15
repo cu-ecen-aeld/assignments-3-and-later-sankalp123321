@@ -1,3 +1,5 @@
+
+
 /**
  * @file aesdsocketThread.c
  * @author sankalp
@@ -28,7 +30,8 @@
 #include "queue.h"
 
 #define _DEBUG_
-#define USE_AESD_CHAR_DEVICE
+
+#undef USE_AESD_CHAR_DEVICE
 
 #define IP_MAX_LEN 100
 #define MAX_BUFFER_SIZE 1024
@@ -42,7 +45,6 @@
 
 static volatile sig_atomic_t rcvdSignal = 0;
 static int write_to_fd = 0;
-
 pthread_mutex_t *gmutex = NULL;
 struct ThreadIDStruct
 {
@@ -129,9 +131,6 @@ int gracefulShutdonw()
     if (shutdown(server_fd, SHUT_RDWR))
         ret = EXIT_FAILURE;
 
-    if (close(write_to_fd))
-        ret = EXIT_FAILURE;
-
     closelog();
     return ret;
 }
@@ -146,13 +145,15 @@ void cleanBeforeExit(int fd1, int fd2)
 void *connectionThread(void *args)
 {
     struct ThreadIDStruct *threadStruct = (struct ThreadIDStruct *)args;
+    int ret_mutex = 0;
+
 #ifdef _DEBUG_
     printf("STarting thread %ld\n", threadStruct->tID);
 #endif
     uint8_t *buf = malloc(MAX_BUFFER_SIZE);
     if (buf == NULL)
     {
-        syslog(LOG_ERR, "ENOMEM");
+        syslog(LOG_ERR, "malloc ENOMEM");
         // // cleanBeforeExit(write_to_fd, server_fd);
         // return EXIT_FAILURE;
     }
@@ -163,6 +164,7 @@ void *connectionThread(void *args)
 
     while (shouldSend)
     {
+        write_to_fd = open(TEMP_FILE, O_RDWR | O_CREAT | O_APPEND, 0644);
         uint8_t found_a_packet = 0;
         int ret_val = recv(threadStruct->clienFd, &buf[total_buf_size], buffer_size, 0);
         if (!ret_val)
@@ -186,13 +188,11 @@ void *connectionThread(void *args)
                 if (buf[i] == '\n')
                 {
                     found_a_packet = 1;
-                    int ret_mutex = 0;
                     if ((ret_mutex = pthread_mutex_lock(gmutex)) != 0)
                     {
                         syslog(LOG_ERR, "Mutex error %d\n", ret_mutex);
                         return NULL;
                     }
-
                     int ret = write(write_to_fd, buf, strlen((char *)buf));
                     if (ret == strlen((char *)buf))
                     {
@@ -211,7 +211,7 @@ void *connectionThread(void *args)
                 realloc_count++;
                 if ((buf = realloc(buf, realloc_count * buffer_size)) == NULL)
                 {
-                    syslog(LOG_ERR, "ENOMEM");
+                    syslog(LOG_ERR, "realloc ENOMEM");
                     free(buf);
                     return NULL;
                 }
@@ -267,7 +267,7 @@ void *connectionThread(void *args)
 #endif
     }
     threadStruct->isProcessingComplete = 1;
-    int ret_mutex = 0;
+    close(write_to_fd);
     if ((ret_mutex = pthread_mutex_unlock(gmutex)) != 0)
     {
         syslog(LOG_ERR, "Mutex error %d\n", ret_mutex);
@@ -334,12 +334,7 @@ int main(int argc, char *argv[])
 
     openlog("aesdsocket", LOG_CONS | LOG_PERROR | LOG_PID, LOG_USER);
 
-    write_to_fd = open(TEMP_FILE, O_RDWR | O_CREAT | O_APPEND, 0755);
-    if (write_to_fd < 0)
-    {
-        syslog(LOG_ERR, "open file: %s", strerror(errno));
-        return EXIT_FAILURE;
-    }
+    
 
     int mutex_ret = pthread_mutex_init(&mutex, NULL);
     if (mutex_ret != 0)
@@ -359,7 +354,6 @@ int main(int argc, char *argv[])
     {
         remove(TEMP_FILE);
         syslog(LOG_ERR, "getaddrinfo error %s\n", gai_strerror(ret));
-        close(write_to_fd);
         return EXIT_FAILURE;
     }
 
@@ -372,14 +366,12 @@ int main(int argc, char *argv[])
     {
         remove(TEMP_FILE);
         syslog(LOG_ERR, "socket: %s", strerror(errno));
-        close(write_to_fd);
         freeaddrinfo(new_addr);
         return EXIT_FAILURE;
     }
     if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0)
     {
         syslog(LOG_ERR, "socketopt: %s", strerror(errno));
-        close(write_to_fd);
         freeaddrinfo(new_addr);
         exit(EXIT_FAILURE);
     }
@@ -422,7 +414,6 @@ int main(int argc, char *argv[])
             if (ret_val < 0)
             {
                 syslog(LOG_ERR, "daemon: %s", strerror(errno));
-                cleanBeforeExit(write_to_fd, server_fd);
                 return EXIT_FAILURE;
             }
         }
@@ -446,7 +437,6 @@ int main(int argc, char *argv[])
     if (listen_ret < 0)
     {
         syslog(LOG_ERR, "listen: %s", strerror(errno));
-        cleanBeforeExit(write_to_fd, server_fd);
         return EXIT_FAILURE;
     }
 
@@ -472,7 +462,6 @@ int main(int argc, char *argv[])
         if(ret_poll < 0)
         {
             syslog(LOG_ERR, "poll: %s", strerror(errno));
-            cleanBeforeExit(write_to_fd, server_fd);
             return EXIT_FAILURE;
         }
         else if(ret_poll == 0)
@@ -507,7 +496,6 @@ int main(int argc, char *argv[])
         if (new_fd < 0)
         {
             syslog(LOG_ERR, "accept: %s", strerror(errno));
-            cleanBeforeExit(write_to_fd, server_fd);
             return EXIT_FAILURE;
         }
 
@@ -516,7 +504,6 @@ int main(int argc, char *argv[])
         if (ret == NULL)
         {
             syslog(LOG_ERR, "inet_ntop: %s", strerror(errno));
-            cleanBeforeExit(write_to_fd, server_fd);
             return EXIT_FAILURE;
         }
 
