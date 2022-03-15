@@ -24,4 +24,6 @@ void test_validate_my_username()
     char* mallocd_user_name = malloc_username_from_conf_file();
     // Check if the two username are wqual or not.
     TEST_ASSERT_EQUAL_STRING_MESSAGE(user_name, mallocd_user_name, "Username is invalid. Check for errors.");
+
+    free(mallocd_user_name);
 }
