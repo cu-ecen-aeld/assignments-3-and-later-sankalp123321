@@ -1,5 +1,5 @@
 # App name
-APP_NAME=aesdsocket
+APP_NAME=ct
 # compiler
 GCC=gcc
 # Compiler flags
@@ -14,9 +14,9 @@ endif
 # Include file if any exists
 C_INCLUDE=.
 # Obj file name
-C_OBJ=build/aesdsocket.o
+C_OBJ=build/charTest.o
 # Source file name
-C_SRC=aesdsocket.c
+C_SRC=charTest.c
 
 # Command line variable
 CROSS_COMPILE = 

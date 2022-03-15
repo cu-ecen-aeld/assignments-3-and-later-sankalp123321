@@ -67,7 +67,15 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 	aDev = (struct aesd_dev*)filp->private_data;
 	entry = aDev->element;
 	{
+		if (mutex_lock_interruptible(&aDev->lock) != 0)
+		{
+			printk(KERN_INFO "Mutex failed to aquire.\n");
+			return -EFAULT;
+		}
+		
 		entry = aesd_circular_buffer_find_entry_offset_for_fpos(&aDev->circularBuffer, *f_pos, &temp);
+
+		mutex_unlock(&aDev->lock);
 		if(entry == NULL)
 		{
 			printk(KERN_INFO "returning from here\n");
@@ -167,9 +175,17 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 		{
 			//printk(KERN_INFO "New line found.\n");
 			// reset the flag
-			aDev->isComplete = 1;
+			aDev->isComplete = 1;	
+
+			if (mutex_lock_interruptible(&aDev->lock) != 0)
+			{
+				printk(KERN_INFO "Mutex failed to aquire.\n");
+				return -EFAULT;
+			}
+			
 			// add the entry to the circular buffer
 			ret = aesd_circular_buffer_add_entry(&aDev->circularBuffer, aDev->element);
+			mutex_unlock(&aDev->lock);
 			
 			aDev->element->size = 0;
 			if(ret.buffptr != NULL)
@@ -245,6 +261,8 @@ int aesd_init_module(void)
 
 void aesd_cleanup_module(void)
 {
+	int cntr = 0;
+	struct aesd_buffer_entry *element;
 	dev_t devno = MKDEV(aesd_major, aesd_minor);
 
 	cdev_del(&aesd_device.cdev);
@@ -252,7 +270,21 @@ void aesd_cleanup_module(void)
 	/**
 	 * TODO: cleanup AESD specific poritions here as necessary
 	 */
+	AESD_CIRCULAR_BUFFER_FOREACH(element, &aesd_device.circularBuffer, cntr) 
+	{
+		if(element->buffptr != NULL)
+		{
+			kfree(element->buffptr);
+			element->size = 0;
+		}
+	}
+	
+	if(aesd_device.element != NULL)
+	{
+		kfree(aesd_device.element);
+	}
 
+	mutex_destroy(&aesd_device.lock);
 	unregister_chrdev_region(devno, 1);
 }
 
