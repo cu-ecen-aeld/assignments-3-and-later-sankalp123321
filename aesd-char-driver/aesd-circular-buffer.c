@@ -88,21 +88,6 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
     return NULL;
 }
 
-void print_buffer(struct aesd_circular_buffer *buffer){
-
-    struct  aesd_buffer_entry temp;
-    int i;
-    printk(KERN_ALERT "\n\n PRINT DEBUG \n\n");
-
-    
-    for( i=0; i< AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED; i++)
-    {
-        temp = buffer->entry[i];
-        
-        printk(KERN_ALERT "%p: %s\n", temp.buffptr, temp.buffptr);
-    }
-}
-
 /**
 * Adds entry @param add_entry to @param buffer in the location specified in buffer->in_offs.
 * If the buffer was already full, overwrites the oldest entry and advances buffer->out_offs to the
@@ -131,8 +116,6 @@ struct aesd_buffer_entry aesd_circular_buffer_add_entry(struct aesd_circular_buf
         //buffer->full = false;
     }
     buffer->entry[buffer->in_offs] = *add_entry;
-    printk(KERN_INFO "New element %s %ld are added %d %d\n", buffer->entry[buffer->in_offs].buffptr, buffer->entry[buffer->in_offs].size, buffer->in_offs, buffer->out_offs);
-    print_buffer(buffer);
     buffer->in_offs = (buffer->in_offs + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
     if(buffer->in_offs == buffer->out_offs)
     {
