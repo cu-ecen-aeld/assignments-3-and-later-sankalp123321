@@ -209,7 +209,7 @@ void *connectionThread(void *args)
             if (!found_a_packet)
             {
                 realloc_count++;
-                if ((buf = realloc(buf, realloc_count * buffer_size)) != NULL)
+                if ((buf = realloc(buf, realloc_count * buffer_size)) == NULL)
                 {
                     syslog(LOG_ERR, "ENOMEM");
                     free(buf);
