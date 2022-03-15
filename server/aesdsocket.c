@@ -104,7 +104,6 @@ int gracefulShutdonw()
 
     unlink(TEMP_FILE);
     pthread_kill(threadCleanUp, SIGKILL);
-    pthread_kill(threadTimeStamp, SIGKILL);
 
     struct ThreadIDStruct *peruse = NULL;
     TAILQ_FOREACH(peruse, &threadHead, nextThread)
