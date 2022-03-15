@@ -70,20 +70,21 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 		if (mutex_lock_interruptible(&aDev->lock) != 0)
 		{
 			printk(KERN_INFO "Mutex failed to aquire.\n");
-			return -EFAULT;
+			goto end;
 		}
 		
 		entry = aesd_circular_buffer_find_entry_offset_for_fpos(&aDev->circularBuffer, *f_pos, &temp);
 
-		mutex_unlock(&aDev->lock);
+
 		if(entry == NULL)
 		{
 			//continue;
-			return -EFAULT;
+			goto end;
 		}
 
 		printk(KERN_INFO " %ld bytes, string: %s\n", entry->size, entry->buffptr);
-		//else if(entry->size > count)
+		//else if(entry->size > count
+
 		{
 			bytesToRead = entry->size - temp;
 			if(copy_to_user(buf, entry->buffptr + temp, bytesToRead) == 0)
@@ -93,7 +94,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 			}
 			else
 			{
-				return -EFAULT;
+				goto end;
 			}
 		}
 		{
@@ -106,6 +107,8 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
 	*f_pos += bytesToRead;
 
 	printk(KERN_INFO "New fpos %lld\n", *f_pos);
+end:
+	mutex_unlock(&aDev->lock);
 	return retval;
 }
 
@@ -127,7 +130,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 	 */
 	
 	//printk(KERN_INFO "Mallocing %ld bytes.\n", count);
-	
+	*f_pos = 0;	
 	if(aDev->isComplete)
 	{
 		aDev->element->buffptr = kmalloc(count*sizeof(uint8_t), GFP_KERNEL);
@@ -172,7 +175,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 	{
 		if (lBuffptr[i] == '\n')
 		{
-			//printk(KERN_INFO "New line found.\n");
+			printk(KERN_INFO "New line found.\n");
 			// reset the flag
 			aDev->isComplete = 1;	
 
