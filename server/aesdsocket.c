@@ -28,10 +28,15 @@
 #include "queue.h"
 
 #undef _DEBUG_
+#define USE_AESD_CHAR_DEVICE
 
 #define IP_MAX_LEN 100
 #define MAX_BUFFER_SIZE 1024
-#define TEMP_FILE "/var/tmp/aesdsocketdata"
+#ifdef USE_AESD_CHAR_DEVICE
+    #define TEMP_FILE /dev/aesdchar 
+#else
+    #define TEMP_FILE "/var/tmp/aesdsocketdata"
+#endif
 #define ALLOWED_BACKLOG_CONNS 10
 #define PORT "9000"
 
@@ -53,7 +58,6 @@ typedef TAILQ_HEAD(head_s, ThreadIDStruct) ThreadHead;
 ThreadHead threadHead;
 
 pthread_t threadCleanUp = 0;
-pthread_t threadTimeStamp = 0;
 int server_fd = 0;
 
 void *get_in_addr(struct sockaddr *sa)
@@ -317,54 +321,6 @@ void *connectionCleanUpThread(void *args)
     return NULL;
 }
 
-void *timeStampUpdater(void *args)
-{
-    while (1)
-    {
-        sleep(10);
-        char outstr[200];
-        memset(outstr, 0, sizeof outstr);
-        const char *str = "timestamp:";
-        time_t tim;
-        struct tm *tmp = NULL;
-
-        tim = time(NULL);
-        tmp = localtime(&tim);
-        if (tmp == NULL)
-        {
-            syslog(LOG_ERR, "time: %s", strerror(errno));
-        }
-
-        if (strftime(outstr, sizeof outstr, "%a, %d %b %Y %T", tmp) == 0)
-        {
-            // error
-        }
-
-        if (write_to_fd < 0)
-            continue;
-        int ret_mutex = 0;
-        if ((ret_mutex = pthread_mutex_lock(gmutex)) != 0)
-        {
-            syslog(LOG_ERR, "Mutex error %d\n", ret_mutex);
-            return NULL;
-        }
-        outstr[strlen(outstr)] = '\n';
-        int ret = write(write_to_fd, str, strlen(str));
-        ret = write(write_to_fd, outstr, strlen(outstr));
-        // ret = write(write_to_fd, (const char*)'\n', 1);
-        if (ret < 0)
-        {
-            syslog(LOG_ERR, "write: %s", strerror(errno));
-        }
-        if ((ret_mutex = pthread_mutex_unlock(gmutex)) != 0)
-        {
-            syslog(LOG_ERR, "Mutex error %d\n", ret_mutex);
-            return NULL;
-        }
-    }
-    return NULL;
-}
-
 int main(int argc, char *argv[])
 {
     printf("Server application.\n");
@@ -474,15 +430,6 @@ int main(int argc, char *argv[])
     }
 
     int ret_pthread = pthread_create(&threadCleanUp, NULL, connectionCleanUpThread, &threadHead);
-    if (ret_pthread != 0)
-    {
-        syslog(LOG_INFO, "Thread creation error.\n");
-#ifdef _DEBUG_
-        printf("Thread creation error %d\n", ret_pthread);
-#endif
-        return EXIT_FAILURE;
-    }
-    ret_pthread = pthread_create(&threadTimeStamp, NULL, timeStampUpdater, NULL);
     if (ret_pthread != 0)
     {
         syslog(LOG_INFO, "Thread creation error.\n");
