@@ -27,7 +27,7 @@
 #include <time.h>
 #include "queue.h"
 
-#undef _DEBUG_
+#define _DEBUG_
 #define USE_AESD_CHAR_DEVICE
 
 #define IP_MAX_LEN 100
