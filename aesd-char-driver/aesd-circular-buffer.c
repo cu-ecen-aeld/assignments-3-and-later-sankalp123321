@@ -66,8 +66,6 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
             totalElementsInTheList = buffer->out_offs - buffer->in_offs + 1;
         }
     }
-
-    printk(KERN_INFO "totalElement[%d] full[%d] in[%ld] out[%ld]\n", totalElementsInTheList, buffer->full, buffer->in_offs, buffer->out_offs);
     for (i = buffer->out_offs; i < totalElementsInTheList;)
     {
         if((char_offset < buffer->entry[i].size) || !char_offset)
